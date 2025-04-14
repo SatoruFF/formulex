@@ -1,12 +1,14 @@
+import StatementsNode from './AST/StatementsNode';
 import Lexer from './Lexer';
 import ParserCore from './Parser';
+import { FORMATS } from './constants/formats';
 import { FormulaError } from './lib/exceptions';
 import { isNil } from './lib/isNil';
 
 const PREFIX = '{{';
 const POSTFIX = '}}';
 
-interface IField {
+export interface IField {
   id: string;
   title: string;
   type: string;
@@ -29,7 +31,7 @@ export default class Parser {
     if (isNil(expression)) FormulaError.requiredParamsError(['expression']);
     this.expression = expression;
     this.lexer = new Lexer(expression);
-    if (fields.length === 0) FormulaError.requiredParamsError(['fields']);
+    // if (fields.length === 0) FormulaError.requiredParamsError(['fields']);
     this.fields = fields;
   }
 
@@ -37,7 +39,7 @@ export default class Parser {
    * Prepares the field mappings for use in the parsing process.
    * @returns {Array<{ title: string, value: string, type: string }>} The mapped field objects.
    */
-  private prepareFields() {
+  private prepareFields(): { title: string; value: string; type: string }[] {
     return this.fields.map((field) => ({
       title: `${PREFIX}${field.title}${POSTFIX}`,
       value: field.id,
@@ -46,17 +48,40 @@ export default class Parser {
   }
 
   /**
-   * Converts the input expression into an SQL query.
-   * @returns {string} The generated SQL query.
+   * lexic analyze code and parse to ast
    */
-  toSql(): string {
+  prepareParser(): [ParserCore, StatementsNode] {
     this.lexer.lexAnalysis();
     const parser = new ParserCore(this.lexer.tokens);
 
     parser.initVars(this.prepareFields());
     const node = parser.parseCode();
 
-    return parser.toSql(node)[0]; // Currently, returns only the first SQL line
+    return [parser, node];
+  }
+
+  /**
+   * Converts the input expression into an SQL query.
+   * @returns {string} The generated SQL query.
+   */
+  toSql(): string {
+    const [parser, node] = this.prepareParser();
+    return parser.stringifyAst(node, FORMATS.SQL)[0]; // Currently, returns only the first SQL line
+  }
+
+  /**
+   * Converts the input expression into an Js format.
+   * @returns {string} The generated Js string, which can evaluate.
+   */
+  toJs(): string {
+    const [parser, node] = this.prepareParser();
+    return parser.stringifyAst(node, FORMATS.JS)[0]; // Currently, returns only the first JS line
+  }
+
+  // fields in stringify to ast converts in VARIABLES.$[VARIABLE_ID]
+  runJs(jsFormula: string, values: Record<string, unknown>): unknown {
+    const runFormula = new Function('VARIABLES', `return ${jsFormula}`)(values);
+    return runFormula;
   }
 }
 
@@ -68,9 +93,23 @@ const fields = [
   { id: '3', title: 'Поле 3', type: 'text' },
 ];
 
-const expression = 'CONCAT("a") + 1';
+const values = {
+  $1: 1000,
+  $2: 5000,
+  $3: 'testtext',
+};
+
+// const expression = 'REPEAT(REPEAT({{Поле 3}},2),2) + 1 + 2 + (1 + 1)';
+const expression =
+  // 'LEN(REPEAT(REPEAT({{Поле 3}},2),2)) + 1+  LEN(REPEAT("zxc", 1))';
+  '1 + 1 * 2';
 
 const parser = new Parser(expression, fields);
-const sqlQuery = parser.toSql();
 
-console.log(sqlQuery); // Outputs the generated SQL query
+const sqlQuery = parser.toSql();
+console.log('SQL:', sqlQuery); // Outputs the generated SQL query
+
+const jsFormula = parser.toJs();
+console.log('JS:', jsFormula); // Outputs the generated JS query
+
+console.log('RUN JS:', parser.runJs(jsFormula, values));
