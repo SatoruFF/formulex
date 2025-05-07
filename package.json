@@ -19,7 +19,7 @@
     "@types/jest": "^29.5.14",
     "@types/luxon": "^3.6.2",
     "@types/node": "~22",
-    "@typescript-eslint/parser": "~8.30",
+    "@typescript-eslint/parser": "~8.32",
     "eslint": "~9.25",
     "eslint-config-prettier": "~9.1",
     "eslint-plugin-prettier": "^5.2.6",
