@@ -207,7 +207,7 @@ export const textFunctionsToJsMap: Record<
     `DateTime.fromFormat(${val}, ${DATE_FORMAT}).toISO()`,
   BOOLEANARRAYTOSTRING: ([val]) =>
     `('{' + String((${val}).map(i => String(i)[0])) + '}')`,
-  // TODO: add attr support
+  // TODO: add attribute selection support (currently hardcoded to 'id')
   ARRAYWITHITEMSNODETOSTRING: ([val]) =>
     `('{' + String((${val}).map(i => i.id)) + '}')`,
 };

@@ -1,30 +1,31 @@
-# 🧠 Formulex (Formula + Expression + Exec)
+# Formulex (Formula + Expression + Exec)
 
 **Formulex** is a lightweight and extensible library that parses user-defined formulas into SQL expressions or executable JavaScript functions — with built-in AST support.
 
 Perfect for low-code platforms, dashboards, calculated fields, and dynamic logic engines.
 
-> 🚧 This project is a work in progress. Expect bugs and frequent updates.
+> This project is a work in progress. Expect bugs and frequent updates.
 
 ---
 
-## 🚀 Features
+## Features
 
-- ✅ Convert formulas like {Field 1} + {Field 2} * 2 into SQL
-- ✅ Generate executable JavaScript functions from formulas
-- ✅ Parse formulas into abstract syntax trees (AST)
-- ✅ Support for custom field mappings and types
-- ✅ Zero runtime dependencies
+- Convert formulas like {Field 1} + {Field 2} * 2 into SQL
+- Generate executable JavaScript functions from formulas
+- Parse formulas into abstract syntax trees (AST)
+- Support for custom field mappings and types
+- Built-in LRU caching for improved performance on repeated operations
+- Zero runtime dependencies
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install formulex
 ```
 
-## 📗 Usage
+## Usage
 ```js
 import { Parser } from 'formulex';
 
@@ -45,12 +46,30 @@ const jsFormula = parser.toJs();
 
 const result = parser.runJs(jsFormula, { 1: 10, 2: 5 });
 // => 20
-
 ```
 
-## 🛠 API
+### Performance Optimization with Caching
 
-> new Parser(expression: string, fields?: IField[], fieldAttribute?: keyof IField)
+```js
+import { Parser } from 'formulex';
+
+const parser = new Parser(expression, fields, 'id', {
+  enableCache: true,
+  cacheSize: 2000,
+  cacheMaxAge: 7200000,
+});
+
+const sql1 = parser.toSqlWithVariables();
+const sql2 = parser.toSqlWithVariables();
+
+console.log(Parser.getCacheStats());
+```
+
+
+
+## API
+
+> new Parser(expression: string, fields?: IField[], fieldAttribute?: keyof IField, options?: ParserOptions)
 Creates a new parser instance.
 
 > expression: your input formula (e.g. {Field 1} + 10)
@@ -58,6 +77,11 @@ Creates a new parser instance.
 > fields: optional array of fields (with id, name, type)
 
 > fieldAttribute: defines how variables are resolved (id, name, etc.)
+
+> options: optional configuration object
+  - enableCache: boolean - enables LRU caching for improved performance (default: false)
+  - cacheSize: number - maximum cache entries (default: 1000)
+  - cacheMaxAge: number - cache TTL in milliseconds (default: 3600000)
 
 > parser.toSqlWithVariables(): string
 Converts the formula into a valid SQL expression string.
@@ -79,7 +103,7 @@ Supported node types: Number, Variable, BinaryExpression, CallExpression, UnaryE
 > parser.getVariables(): string[]
 Returns all unique variable names used in the formula.
 
-## 🧮 Supported Operators
+## Supported Operators
 
 | Type         | Operators                          | Example                        |
 |--------------|------------------------------------|--------------------------------|
@@ -90,7 +114,7 @@ Returns all unique variable names used in the formula.
 | Variables    | Dynamic keys from your data        | `user.age`, `order.total`     |
 
 
-## 🧩 Use Cases
+## Use Cases
 
 - Dynamic calculated fields in dashboards or CRMs
 
@@ -102,5 +126,5 @@ Returns all unique variable names used in the formula.
 
 - Serverless logic execution
 
-## 📄 License
+## License
 MIT

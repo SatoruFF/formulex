@@ -402,14 +402,10 @@ export default class Parser {
 
   stringifyAst(
     { node, format, safe, values, bpiumValues }: StringifyArgs,
-    // FIXME: any type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): any {
     for (const [NodeType, stringify] of this.possibleStringifiers) {
       if (node instanceof NodeType) {
         return stringify({
-          // FIXME: any type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           node: node as any,
           format,
           safe,
@@ -741,9 +737,7 @@ export default class Parser {
     FormulaError.invalidFunction(node.func.pos, node.name);
   }
 
-  // TODO: support inserting strings as values
   prepareVariableValue = (value: unknown) => {
-    // it is assumed that these will be columns from the database
     if (typeof value === 'string') {
       return `"${value}"`;
     }
@@ -752,9 +746,7 @@ export default class Parser {
 
   // == TYPE CHECK ==
 
-  // TODO: this func need refactor, in every condition block we repeat code: setReturnType, return res ...
-  // return all possible return types
-  // for binary operator and funcs operators we return index which founds coincidence
+  // TODO: refactor - reduce code duplication in condition blocks
   getReturnType(
     node: ExpressionNode,
     ctx?: ExpressionNode,
@@ -767,8 +759,6 @@ export default class Parser {
     for (const [NodeType, getter] of this.possibleTypesGetters) {
       if (node instanceof NodeType) {
         return getter({
-          // FIXME: any type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           node: node as any,
           ctx,
           position,
@@ -1218,8 +1208,6 @@ export default class Parser {
 
   // == VARIABLES HANDLERS ==
 
-  // TODO: need to be taken out traverse
-  // only map variables. it is supposed to be used before conversion to js or sql
   mapIdentifiers(
     node: ExpressionNode,
     {
