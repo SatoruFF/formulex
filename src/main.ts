@@ -19,45 +19,27 @@ import {
 import { FormulaError } from './lib/exceptions';
 import { isNil } from './lib/isNil';
 import { validateResultJs } from './lib/valiadateResultJs';
-import { LRUCache, createCacheKey } from './lib/cache';
-import { hashFields } from './lib/hash';
 
 import { IVar, Variables } from './types';
 import { BpiumValues } from './types';
-
-interface ParserOptions {
-  enableCache?: boolean;
-  cacheSize?: number;
-  cacheMaxAge?: number;
-}
-
 /**
  * The `Parser` class is responsible for converting a JavaScript-like expression into an SQL or JS expression.
  * It supports field mapping, AST parsing, variable extraction, and execution of parsed formulas.
- * Includes optional LRU caching for improved performance on repeated parsing operations.
  */
 export default class Parser {
   public expression: string;
   private lexer: Lexer;
   private root?: StatementsNode;
   private variables: Variables;
-  private static sqlCache?: LRUCache<string>;
-  private static jsCache?: LRUCache<string>;
-  private static astCache?: LRUCache<StatementsNode>;
-  private fieldsHash: string;
 
   /**
    * Creates a new `Parser` instance.
    * @param {string} expression - The input formula or expression.
-   * @param {Variables | IVar[]} variables - Field definitions for variable mapping.
-   * @param {string} varAttr - Attribute to use for variable mapping.
-   * @param {ParserOptions} options - Optional configuration including cache settings.
    */
   constructor(
     expression: string,
     variables: Variables | IVar[] = {},
     varAttr?: string,
-    options: ParserOptions = {},
   ) {
     if (isNil(expression) || expression.length === 0)
       FormulaError.requiredParamsError(['expression']);
@@ -65,47 +47,6 @@ export default class Parser {
     this.lexer = new Lexer(expression);
     const preparedVariables = this._prepareVariables(variables, varAttr);
     this.variables = preparedVariables;
-    this.fieldsHash = hashFields(
-      Array.isArray(variables) ? variables : Object.values(variables),
-    );
-
-    if (options.enableCache && !Parser.sqlCache) {
-      Parser.sqlCache = new LRUCache(
-        options.cacheSize || 1000,
-        options.cacheMaxAge || 3600000,
-      );
-      Parser.jsCache = new LRUCache(
-        options.cacheSize || 1000,
-        options.cacheMaxAge || 3600000,
-      );
-      Parser.astCache = new LRUCache(
-        options.cacheSize || 1000,
-        options.cacheMaxAge || 3600000,
-      );
-    }
-  }
-
-  /**
-   * Returns cache statistics for monitoring performance.
-   * @returns {object | null} Cache stats or null if caching is disabled.
-   */
-  public static getCacheStats() {
-    if (!Parser.sqlCache) return null;
-
-    return {
-      sql: Parser.sqlCache.getStats(),
-      js: Parser.jsCache?.getStats(),
-      ast: Parser.astCache?.getStats(),
-    };
-  }
-
-  /**
-   * Clears all cached entries.
-   */
-  public static clearCache(): void {
-    Parser.sqlCache?.clear();
-    Parser.jsCache?.clear();
-    Parser.astCache?.clear();
   }
 
   /**
@@ -253,27 +194,6 @@ export default class Parser {
     values = {},
     bpiumValues?: BpiumValues,
   ): string {
-    if (Parser.sqlCache) {
-      const cacheKey = createCacheKey(
-        `${this.expression}:${safe}:${JSON.stringify(values)}:${JSON.stringify(bpiumValues)}`,
-        this.fieldsHash,
-      );
-      const cached = Parser.sqlCache.get(cacheKey);
-      if (cached) return cached;
-
-      const [parser, node] = this.prepareParser();
-      const result = parser.stringifyAst({
-        node,
-        format: FORMATS.SQL,
-        safe,
-        values,
-        bpiumValues,
-      })[0];
-
-      Parser.sqlCache.set(cacheKey, result);
-      return result;
-    }
-
     const [parser, node] = this.prepareParser();
     return parser.stringifyAst({
       node,
@@ -281,7 +201,7 @@ export default class Parser {
       safe,
       values,
       bpiumValues,
-    })[0];
+    })[0]; // Currently, returns only the first SQL line
   }
 
   /**
@@ -289,33 +209,13 @@ export default class Parser {
    * @returns {string} The JS representation of the formula.
    */
   public toJs(safe = false, bpiumValues?: BpiumValues): string {
-    if (Parser.jsCache) {
-      const cacheKey = createCacheKey(
-        `${this.expression}:${safe}:${JSON.stringify(bpiumValues)}`,
-        this.fieldsHash,
-      );
-      const cached = Parser.jsCache.get(cacheKey);
-      if (cached) return cached;
-
-      const [parser, node] = this.prepareParser();
-      const result = parser.stringifyAst({
-        node,
-        format: FORMATS.JS,
-        safe,
-        bpiumValues,
-      })[0];
-
-      Parser.jsCache.set(cacheKey, result);
-      return result;
-    }
-
     const [parser, node] = this.prepareParser();
     return parser.stringifyAst({
       node,
       format: FORMATS.JS,
       safe,
       bpiumValues,
-    })[0];
+    })[0]; // Currently, returns only the first JS line
   }
 
   /**

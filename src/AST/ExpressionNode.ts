@@ -1,7 +1,7 @@
 import SpaceNode from './SpaceNode';
 
 export default class ExpressionNode {
-  type: string;
+  type: string; // TODO: add enum for types
   start: number;
   end: number;
   leftSpaces?: SpaceNode[];
